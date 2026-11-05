@@ -1,8 +1,16 @@
 # Selfhosted catalog
 
-A catalog of projects posted on r/selfhosted. Each Monday morning it reads every finished New Project Megathread. Each morning it also reads release posts that are still up on the main page. The same repo, or the same project name, is stored once. GitHub fills in stars, language, topics, and a category. The full post is kept, with a one-sentence summary for the list.
+Find projects people have posted on r/selfhosted. Search by name, topic, or words from the post. Filter by category, language, week, or whether it came from a megathread or the main page. Sort by stars, forks, or newest. Star a search or a category to keep it.
 
-The layout matches [iptv-manager](https://github.com/dreed47/iptv-manager): FastAPI, SQLite in `./data`, and the same `update.sh` / `restart_container.sh` flow. It is meant to sit beside that app on the Docker CT. The container is named `selfhosted-catalog` and listens on port 5010.
+Each project is stored once. A later post for the same repo updates that row. The page shows a one-sentence summary, with the full post and links on the project page. When a post points at GitHub, the catalog fills in stars, forks, language, topics, and a category.
+
+## What it collects
+
+Finished [New Project Megathreads](https://www.reddit.com/r/selfhosted/) are read every Monday at 08:00 America/New_York. The newest thread is still collecting comments, so it is left until the next week, or until it is more than six days old. The newest closed week is read again so late comments are kept. On the Weeks page, "Include the week still open" reads the current thread too.
+
+Each morning at 07:00 it adds posts still up on the main page with the flair Release (AI), Release (No AI), or Product Announcement. The first start backfills every closed week, and those main-page posts back to 7 April 2026.
+
+## Run
 
 ```sh
 cp sample.env .env
@@ -10,10 +18,6 @@ cp sample.env .env
 docker compose up -d --build
 ```
 
-Then open `http://<host>:5010`.
+Open `http://localhost:5010`.
 
-The Monday job skips the newest thread, because that week is still collecting comments. If that thread is already more than six days old, it is read anyway. The newest closed week is refreshed each run so late comments are kept. On the Weeks page, "Include the week still open" reads the current thread too and marks it open so the next run reads it again.
-
-The first start backfills every closed week, and main-page release posts back to 7 Apr 2026. Comment fetches are paced. GitHub enrichment continues in the background and resumes after a restart if the rate limit stops it. A token makes that first pass much shorter. A project already saved from a megathread is not added again when the same repo or name shows up on the main page.
-
-`./update.sh` pulls the git remote and rebuilds the container. The database stays in `./data`.
+A GitHub token is optional. Without one, star counts fill in at 60 requests an hour and resume after a restart. `./update.sh` pulls the latest code and rebuilds the container. The database stays in `./data`.
