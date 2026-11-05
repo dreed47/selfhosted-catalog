@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ row.name }} · Selfhosted{% endblock %}
+{% block body %}
+<p class="back"><a href="/{% if thread %}?week={{ thread.id }}{% endif %}">← {% if thread and thread.id == 'feed' %}Main page{% elif thread %}Week of {{ thread.week_label }}{% else %}Catalog{% endif %}</a></p>
+<article class="detail" data-cat="{{ row.category }}">
+  <header class="detail-head">
+    <div class="card-top">
+      <span class="pill">{{ row.category }}</span>
+      {% if row.language %}<span class="pill quiet">{{ row.language }}</span>{% endif %}
+      {% if row.license %}<span class="pill quiet">{{ row.license }}</span>{% endif %}
+      {% if row.archived %}<span class="pill quiet">Archived</span>{% endif %}
+    </div>
+    <h1>{{ row.name }}</h1>
+    <p class="lead">{{ row.summary }}</p>
+    <div class="statband">
+      <div class="stat-stars">
+        <span class="stat-n"><svg class="ico" aria-hidden="true"><use href="#i-star"/></svg><b>{{ row.stars|stars }}</b></span>
+        <span>stars</span>
+      </div>
+      <div class="stat-forks">
+        <span class="stat-n"><svg class="ico" aria-hidden="true"><use href="#i-fork"/></svg><b>{{ row.forks|stars }}</b></span>
+        <span>forks</span>
+      </div>
+      <div>
+        <span class="stat-n"><b>{{ row.score }}</b></span>
+        <span>reddit</span>
+      </div>
+    </div>
+    <div class="actions">
+      {% if row.repo_url %}<a class="button" href="{{ row.repo_url }}" target="_blank" rel="noopener">Repository</a>{% endif %}
+      {% if row.website_url %}<a class="button ghost" href="{{ row.website_url }}" target="_blank" rel="noopener">Website</a>{% endif %}
+      {% if row.permalink %}<a class="button ghost" href="{{ row.permalink }}" target="_blank" rel="noopener">{% if row.source == 'feed' %}Main page{% else %}Reddit post{% endif %}</a>{% endif %}
+      {% if row.feed_permalink %}<a class="button ghost" href="{{ row.feed_permalink }}" target="_blank" rel="noopener">Main page</a>{% endif %}
+    </div>
+  </header>
+
+  <dl class="facts">
+    <div><dt>Posted</dt><dd>{{ row.created_utc|shortdate }}{% if row.author %} by {{ row.author }}{% endif %}</dd></div>
+    <div><dt>Last push</dt><dd>{{ row.github_pushed_at|shortdate or "—" }}</dd></div>
+    <div><dt>Category from</dt><dd>{{ row.category_source }}</dd></div>
+  </dl>
+
+  {% if topics %}
+    <ul class="topics">
+      {% for topic in topics %}<li>{{ topic }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if row.github_description %}
+    <p class="gh-desc">{{ row.github_description }}</p>
+  {% endif %}
+
+  <h2>Full post</h2>
+  <div class="post">{{ row.body|linkify }}</div>
+</article>
+{% endblock %}

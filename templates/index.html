@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}{% if q %}{{ q }} · {% endif %}Selfhosted{% endblock %}
+{% block body %}
+<section class="hero">
+  <div class="hero-copy">
+    <p class="eyebrow">r/selfhosted · one sentence each</p>
+    <h1>Projects from r/selfhosted.</h1>
+    <p class="lede">Every {{ schedule }}, the finished megathread is pulled in. Each morning, release posts still up on the main page are added. A repo or name already stored is kept as one project. Stars and forks come from GitHub.</p>
+  </div>
+  <div class="hero-side">
+    <form class="search" method="get" action="/">
+      {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+      {% if language %}<input type="hidden" name="language" value="{{ language }}">{% endif %}
+      {% if week %}<input type="hidden" name="week" value="{{ week }}">{% endif %}
+      {% if sort and sort != 'new' %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+      {% if min_stars %}<input type="hidden" name="min_stars" value="{{ min_stars }}">{% endif %}
+      {% if min_forks %}<input type="hidden" name="min_forks" value="{{ min_forks }}">{% endif %}
+      <input id="q" type="search" name="q" value="{{ q }}" maxlength="200" placeholder="Search names, posts, topics" aria-label="Search">
+      <button type="submit">Search</button>
+      <button type="button" class="star {% if q|trim and q|trim in fav_searches %}is-on{% endif %}" id="save-search" data-kind="search" data-value="{{ q|trim }}" aria-pressed="{{ 'true' if q|trim and q|trim in fav_searches else 'false' }}" aria-label="{% if q|trim and q|trim in fav_searches %}Remove saved search{% else %}Save this search{% endif %}" {% if not q|trim %}disabled{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-star"/></svg>
+      </button>
+    </form>
+  </div>
+</section>
+
+<section class="pulse" aria-label="Refresh and catalog size">
+  <div>
+    <span>{% if stats.running %}Refreshing now{% else %}Last refresh{% endif %}</span>
+    {% if stats.running %}
+      <strong>In progress</strong>
+      <small>{{ stats.detail or "Pull in progress" }}</small>
+      {% if stats.last_when != "Not yet" %}<small>Last finished {{ stats.last_when }}</small>{% endif %}
+    {% else %}
+      <strong>{{ stats.last_when }}</strong>
+      {% if stats.last_note %}<small>{{ stats.last_note }}</small>{% endif %}
+    {% endif %}
+  </div>
+  <div>
+    <span>Next · {{ stats.soon_what }}</span>
+    <strong>{{ stats.soon_when }}</strong>
+    <small>Then {{ stats.later_what }} {{ stats.later_when }}</small>
+  </div>
+  <div>
+    <span>Catalog</span>
+    <strong>{{ stats.projects }}</strong>
+    <small>{{ stats.with_stars }} with stars · {{ stats.waiting }}</small>
+    <small>{{ stats.from_weeks }} in {{ stats.weeks }} {{ 'week' if stats.weeks == 1 else 'weeks' }} · {{ stats.from_feed }} from the main page</small>
+  </div>
+</section>
+
+<section class="saved" id="saved" {% if not fav_searches and not fav_categories %}hidden{% endif %}>
+  <p class="saved-label">Saved</p>
+  <div class="saved-chips" id="saved-chips">
+    {% for term in fav_searches %}
+      <span class="chip" data-kind="search" data-value="{{ term }}">
+        <a href="/?{{ qs(q=term) }}">{{ term }}</a>
+        <button type="button" class="star is-on" data-kind="search" data-value="{{ term }}" aria-pressed="true" aria-label="Remove saved search {{ term }}">
+          <svg class="ico" aria-hidden="true"><use href="#i-star"/></svg>
+        </button>
+      </span>
+    {% endfor %}
+    {% for name in fav_categories %}
+      <span class="chip" data-kind="category" data-value="{{ name }}">
+        <a href="/?{{ qs(category=name) }}">{{ name }}</a>
+        <button type="button" class="star is-on" data-kind="category" data-value="{{ name }}" aria-pressed="true" aria-label="Remove saved category {{ name }}">
+          <svg class="ico" aria-hidden="true"><use href="#i-star"/></svg>
+        </button>
+      </span>
+    {% endfor %}
+  </div>
+</section>
+
+<div id="banner" class="banner {% if running or stats.last_status == 'error' or project_count == 0 %}is-on{% endif %}" data-running="{{ '1' if running else '0' }}">
+  {% if running %}
+    Pull in progress. This page keeps its place.
+  {% elif stats.last_status == 'error' %}
+    Last pull failed: {{ stats.last_message }}
+  {% elif project_count == 0 %}
+    Nothing stored yet. The first pull starts with the app.
+  {% endif %}
+</div>
+
+<div class="layout">
+  <aside class="facets">
+    <h2>Category</h2>
+    <div class="facet-row {% if not category %}is-on{% endif %}">
+      <a class="facet" href="/?{{ qs(q=q, language=language, week=week, sort=sort, min_stars=min_stars, min_forks=min_forks) }}">All <span>{{ facet_total }}</span></a>
+    </div>
+    {% for name, count in categories %}
+      <div class="facet-row {% if category == name %}is-on{% endif %}" data-cat="{{ name }}">
+        <a class="facet" href="/?{{ qs(q=q, category=name, language=language, week=week, sort=sort, min_stars=min_stars, min_forks=min_forks) }}">
+          <i class="dot" aria-hidden="true"></i>
+          <span class="facet-name">{{ name }}</span>
+          <span class="count">{{ count }}</span>
+        </a>
+        <button type="button" class="star {% if name in fav_categories %}is-on{% endif %}" data-kind="category" data-value="{{ name }}" aria-pressed="{{ 'true' if name in fav_categories else 'false' }}" aria-label="{% if name in fav_categories %}Remove saved category {{ name }}{% else %}Save category {{ name }}{% endif %}">
+          <svg class="ico" aria-hidden="true"><use href="#i-star"/></svg>
+        </button>
+      </div>
+    {% endfor %}
+    {% if languages %}
+      <h2>Language</h2>
+      <div class="facet-row {% if not language %}is-on{% endif %}">
+        <a class="facet" href="/?{{ qs(q=q, category=category, week=week, sort=sort, min_stars=min_stars, min_forks=min_forks) }}">Any</a>
+      </div>
+      {% for name, count in languages %}
+        <div class="facet-row {% if language == name %}is-on{% endif %}">
+          <a class="facet" href="/?{{ qs(q=q, category=category, language=name, week=week, sort=sort, min_stars=min_stars, min_forks=min_forks) }}">{{ name }} <span class="count">{{ count }}</span></a>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </aside>
+
+  <section>
+    <div class="toolbar">
+      <p>{{ total }} showing{% if week %} · {{ week_name.get(week, week) }}{% endif %}</p>
+      <form method="get" class="sort">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+        {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+        {% if language %}<input type="hidden" name="language" value="{{ language }}">{% endif %}
+        <label>
+          Source
+          <select name="week" onchange="this.form.submit()">
+            <option value="">All</option>
+            <option value="feed" {% if week == 'feed' %}selected{% endif %}>Main page</option>
+            {% for item in weeks if item.id != 'feed' %}
+              <option value="{{ item.id }}" {% if week == item.id %}selected{% endif %}>{{ item.week_label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="{% if min_stars %}is-set{% endif %}">
+          Stars
+          <select name="min_stars" onchange="this.form.submit()">
+            <option value="" {% if not min_stars %}selected{% endif %}>Any</option>
+            {% for step in star_steps %}
+              <option value="{{ step }}" {% if min_stars == step %}selected{% endif %}>{{ step }}+</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="{% if min_forks %}is-set{% endif %}">
+          Forks
+          <select name="min_forks" onchange="this.form.submit()">
+            <option value="" {% if not min_forks %}selected{% endif %}>Any</option>
+            {% for step in fork_steps %}
+              <option value="{{ step }}" {% if min_forks == step %}selected{% endif %}>{{ step }}+</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Sort
+          <select name="sort" onchange="this.form.submit()">
+            <option value="new" {% if sort == 'new' %}selected{% endif %}>Newest post</option>
+            <option value="stars" {% if sort == 'stars' %}selected{% endif %}>Stars</option>
+            <option value="forks" {% if sort == 'forks' %}selected{% endif %}>Forks</option>
+            <option value="updated" {% if sort == 'updated' %}selected{% endif %}>Last commit</option>
+            <option value="score" {% if sort == 'score' %}selected{% endif %}>Reddit score</option>
+            <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+          </select>
+        </label>
+      </form>
+    </div>
+
+    {% if rows %}
+      <div class="grid">
+        {% for row in rows %}
+          <a class="card" data-cat="{{ row.category }}" href="/p/{{ row.id }}">
+            <div class="card-body">
+              <div class="card-top">
+                <span class="pill">{{ row.category }}</span>
+                {% if row.language %}<span class="lang">{{ row.language }}</span>{% endif %}
+                {% if row.archived %}<span class="lang">Archived</span>{% endif %}
+              </div>
+              <h3>{{ row.name }}</h3>
+              <p>{{ row.summary }}</p>
+            </div>
+            <div class="stats">
+              <span class="stat stat-stars">
+                <span class="stat-n"><svg class="ico" aria-hidden="true"><use href="#i-star"/></svg><b>{{ row.stars|stars }}</b></span>
+                <small>stars</small>
+              </span>
+              <span class="stat stat-forks">
+                <span class="stat-n"><svg class="ico" aria-hidden="true"><use href="#i-fork"/></svg><b>{{ row.forks|stars }}</b></span>
+                <small>forks</small>
+              </span>
+              <span class="stat-week">{{ week_name.get(row.thread_id, "") }}</span>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <h3>No projects match.</h3>
+        <p>Clear a filter, or wait for the first pull to finish.</p>
+        <a href="/">Show everything</a>
+      </div>
+    {% endif %}
+
+    {% if pages > 1 %}
+      <nav class="pager">
+        {% if page > 1 %}
+          <a href="/?{{ qs(q=q, category=category, language=language, week=week, sort=sort, min_stars=min_stars, min_forks=min_forks, page=page-1) }}">Previous</a>
+        {% endif %}
+        <span>Page {{ page }} of {{ pages }}</span>
+        {% if page < pages %}
+          <a href="/?{{ qs(q=q, category=category, language=language, week=week, sort=sort, min_stars=min_stars, min_forks=min_forks, page=page+1) }}">Next</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  </section>
+</div>
+<script>
+(function () {
+  const banner = document.getElementById("banner");
+  const saved = document.getElementById("saved");
+  const chips = document.getElementById("saved-chips");
+  const searchBox = document.getElementById("q");
+  const saveSearch = document.getElementById("save-search");
+
+  function starSvg() {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "ico");
+    svg.setAttribute("aria-hidden", "true");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", "#i-star");
+    svg.appendChild(use);
+    return svg;
+  }
+
+  function paint(button, on) {
+    button.classList.toggle("is-on", on);
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+    const value = button.dataset.value || "";
+    if (button.dataset.kind === "search") {
+      button.setAttribute("aria-label", on ? "Remove saved search" + (value ? " " + value : "") : "Save this search");
+    } else {
+      button.setAttribute("aria-label", (on ? "Remove saved category " : "Save category ") + value);
+    }
+  }
+
+  function makeChip(kind, value) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.dataset.kind = kind;
+    chip.dataset.value = value;
+    const link = document.createElement("a");
+    const params = new URLSearchParams();
+    params.set(kind === "search" ? "q" : "category", value);
+    link.href = "/?" + params.toString();
+    link.textContent = value;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "star is-on";
+    button.dataset.kind = kind;
+    button.dataset.value = value;
+    button.setAttribute("aria-pressed", "true");
+    button.setAttribute("aria-label", kind === "search" ? "Remove saved search " + value : "Remove saved category " + value);
+    button.appendChild(starSvg());
+    chip.append(link, button);
+    return chip;
+  }
+
+  function sync(kind, value, on) {
+    document.querySelectorAll(".star").forEach(function (button) {
+      if (button.dataset.kind === kind && button.dataset.value === value) paint(button, on);
+    });
+    const existing = Array.from(chips.children).find(function (chip) {
+      return chip.dataset.kind === kind && chip.dataset.value === value;
+    });
+    if (on && !existing) chips.prepend(makeChip(kind, value));
+    if (!on && existing) existing.remove();
+    saved.hidden = chips.children.length === 0;
+  }
+
+  document.addEventListener("click", async function (event) {
+    const button = event.target.closest(".star");
+    if (!button || button.disabled) return;
+    const kind = button.dataset.kind;
+    const value = (button.dataset.value || "").trim();
+    if (!value) return;
+    button.disabled = true;
+    try {
+      const body = new FormData();
+      body.set("kind", kind);
+      body.set("value", value);
+      const res = await fetch("/api/favorites", { method: "POST", body: body });
+      if (!res.ok) return;
+      const data = await res.json();
+      sync(kind, value, !!data.saved);
+    } finally {
+      if (button.id === "save-search" && !(searchBox && searchBox.value.trim())) button.disabled = true;
+      else button.disabled = false;
+    }
+  });
+
+  if (searchBox && saveSearch) {
+    searchBox.addEventListener("input", function () {
+      const value = searchBox.value.trim();
+      saveSearch.dataset.value = value;
+      saveSearch.disabled = !value;
+      const on = Array.from(chips.children).some(function (chip) {
+        return chip.dataset.kind === "search" && chip.dataset.value === value;
+      });
+      paint(saveSearch, on);
+    });
+  }
+
+  async function tick() {
+    try {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      if (data.running) {
+        banner.classList.add("is-on");
+        banner.textContent = data.detail || "Pull in progress.";
+        setTimeout(tick, 4000);
+      } else if (banner.dataset.running === "1") {
+        location.reload();
+      }
+    } catch (err) {
+      setTimeout(tick, 8000);
+    }
+  }
+  if (banner.dataset.running === "1") tick();
+})();
+</script>
+{% endblock %}

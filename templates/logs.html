@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Log · Selfhosted{% endblock %}
+{% block body %}
+<section class="hero slim">
+  <div>
+    <p class="eyebrow">This process only</p>
+    <h1>Pull log</h1>
+    <p class="lede">The last few hundred lines. A restart clears them. The database keeps the projects.</p>
+  </div>
+</section>
+<pre class="log">{% for line in lines %}{{ line }}
+{% else %}No lines yet.
+{% endfor %}</pre>
+{% endblock %}

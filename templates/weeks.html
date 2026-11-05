@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Weeks · Selfhosted{% endblock %}
+{% block body %}
+<section class="hero slim">
+  <div>
+    <p class="eyebrow">{{ project_count }} projects stored</p>
+    <h1>Weekly threads</h1>
+    <p class="lede">The newest Reddit thread is still open, so the Monday job leaves it alone and reads every week before it. Pull again any time.</p>
+  </div>
+  <form class="pull" method="post" action="/ingest" id="pull-form">
+    <label class="check"><input type="checkbox" name="include_current" value="1"> Include the week still open</label>
+    <button type="submit" id="pull-button">Pull now</button>
+  </form>
+</section>
+<div id="banner" class="banner {% if running %}is-on{% endif %}" data-running="{{ '1' if running else '0' }}">{% if running %}Pull in progress.{% endif %}</div>
+<table class="weeks">
+  <thead>
+    <tr><th>Week</th><th>Projects</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>
+          <a href="/?week={{ row.id }}">{{ row.week_label }}</a>
+        </td>
+        <td>{{ row.project_count }}</td>
+        <td><span class="status status-{{ row.status }}">{{ row.status }}</span></td>
+        <td>{% if row.permalink %}<a href="{{ row.permalink }}" target="_blank" rel="noopener">Reddit</a>{% endif %}</td>
+      </tr>
+      {% if row.error %}
+        <tr><td colspan="4" class="err">{{ row.error }}</td></tr>
+      {% endif %}
+    {% else %}
+      <tr><td colspan="4">No weeks stored yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<script>
+document.getElementById("pull-form").addEventListener("submit", async function (event) {
+  event.preventDefault();
+  const body = new FormData(event.target);
+  const button = document.getElementById("pull-button");
+  button.disabled = true;
+  const res = await fetch("/api/ingest", { method: "POST", body });
+  const data = await res.json();
+  const banner = document.getElementById("banner");
+  banner.classList.add("is-on");
+  banner.dataset.running = "1";
+  banner.textContent = data.running && data.ok === false ? "A pull is already running." : "Pull started.";
+  tick();
+});
+async function tick() {
+  const banner = document.getElementById("banner");
+  if (banner.dataset.running !== "1") return;
+  try {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    if (data.running) {
+      banner.textContent = data.detail || "Pull in progress.";
+      setTimeout(tick, 4000);
+    } else {
+      location.reload();
+    }
+  } catch (err) {
+    setTimeout(tick, 8000);
+  }
+}
+if (document.getElementById("banner").dataset.running === "1") tick();
+</script>
+{% endblock %}
